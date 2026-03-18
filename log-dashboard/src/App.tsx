@@ -273,7 +273,7 @@ const App: React.FC = () => {
 
   if (data.length === 0) {
     return (
-      <div className="dashboard-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div key="empty-state" className="dashboard-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <header className="header" style={{ marginBottom: '3rem', position: 'relative', width: '100%', maxWidth: '800px' }}>
           <div style={{ position: 'absolute', top: '-40px', right: '0' }}>
             <button 
@@ -312,7 +312,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="dashboard-container">
+    <div key="dashboard-state" className="dashboard-container">
       <header className="header" style={{ position: 'relative' }}>
         <h1>Teste de Automação TFA</h1>
         <p>Dashboard Analítico de Execução dos Testes</p>
