@@ -147,6 +147,8 @@ const App: React.FC = () => {
       } catch (e) {
         console.warn("Storage cheio ou erro ao salvar localmente: ", e);
       }
+    } else {
+      localStorage.removeItem('tfa_dashboard_data');
     }
   }, [data]);
 
@@ -201,11 +203,17 @@ const App: React.FC = () => {
     reader.onload = (evt) => {
       const text = evt.target?.result as string;
       const parsedData = parseLogFile(text);
+      
+      if (parsedData.length === 0) {
+        alert("O arquivo não contém os marcadores esperados ('Logs do Sikulix - Teste:'). Verifique se é o arquivo de log correto.");
+      }
+      
       setData(parsedData);
       setFilter('all');
       setExpandedRow(null);
     };
     reader.readAsText(file, 'utf-8');
+    e.target.value = ''; // Reset input to allow re-uploading the same file
   };
 
   const filteredData = useMemo(() => {
