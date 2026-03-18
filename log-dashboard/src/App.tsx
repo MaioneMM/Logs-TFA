@@ -81,8 +81,17 @@ const parseLogFile = (text: string): TestResult[] => {
   return tests;
 };
 
-const APP_VERSION = "v1.1.1";
+const APP_VERSION = "v1.1.2";
 const CHANGELOG = [
+  {
+    version: 'v1.1.2',
+    date: '18/03/2026',
+    changes: [
+      'Corrigido erro crítico de interface (NotFoundError) na Vercel causado pelo módulo de tradução do navegador',
+      'Corrigido bug que mantinha logs antigos presos na memória (localStorage)',
+      'Adicionado aviso inteligente quando o arquivo de log for inválido ou não contiver testes'
+    ]
+  },
   {
     version: 'v1.1.1',
     date: '18/03/2026',
