@@ -226,6 +226,64 @@ tr:last-child td {
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+.status-badge.warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.analysis-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.5rem;
+  border: 1px dashed var(--border-color);
+  align-items: center;
+}
+
+.analysis-btn {
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+
+.analysis-btn.bug {
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.analysis-btn.bug:hover {
+  background: var(--error);
+  color: white;
+}
+
+.analysis-btn.verify {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.analysis-btn.verify:hover {
+  background: var(--success);
+  color: white;
+}
+
+.analysis-btn.active {
+  box-shadow: 0 0 10px currentColor;
+  transform: scale(1.05);
+}
+
 /* Filter styles */
 .filter-container {
   display: flex;

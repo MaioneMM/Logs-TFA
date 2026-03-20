@@ -4,12 +4,14 @@ import { CheckCircle2, XCircle, Activity, FileJson, ChevronDown, ChevronRight, U
 
 // Basic Types
 type TestStatus = 'pass' | 'error';
+type ManualStatus = 'bug' | 'infra' | 'verified';
 interface TestResult {
   name: string;
   status: TestStatus;
   logs: string[];
   durationStr: string;
   durationSecs: number;
+  manualStatus?: ManualStatus;
 }
 
 const parseLogFile = (text: string): TestResult[] => {
@@ -81,8 +83,17 @@ const parseLogFile = (text: string): TestResult[] => {
   return tests;
 };
 
-const APP_VERSION = "v1.2.0";
+const APP_VERSION = "v1.3.1";
 const CHANGELOG = [
+  {
+    version: 'v1.3.1',
+    date: '20/03/2026',
+    changes: [
+      'Adicionado sistema de Triagem Manual de Erros: agora é possível classificar erros como "Falha Real" ou "Erro de Execução"',
+      'Os Erros de Execução marcados como "Verificados" não contam mais negativamente nas estatísticas de sucesso',
+      'Persistência Inteligente: suas análises manuais são salvas no navegador e permanecem ao recarregar a página'
+    ]
+  },
   {
     version: 'v1.2.0',
     date: '20/03/2026',
@@ -143,9 +154,20 @@ const App: React.FC = () => {
     return [];
   });
   const [showChangelog, setShowChangelog] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'pass' | 'error'>('all');
+  const [filter, setFilter] = useState<'all' | 'pass' | 'error' | 'verified'>('all');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [manualAnalyses, setManualAnalyses] = useState<Record<string, ManualStatus>>(() => {
+    const saved = localStorage.getItem('tfa_manual_analyses');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Falha ao ler análises manuais", e);
+      }
+    }
+    return {};
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll para o final do log quando expandir uma linha
@@ -161,6 +183,10 @@ const App: React.FC = () => {
   }, [expandedRow]);
 
   useEffect(() => {
+    localStorage.setItem('tfa_manual_analyses', JSON.stringify(manualAnalyses));
+  }, [manualAnalyses]);
+
+  useEffect(() => {
     if (data.length > 0) {
       try {
         localStorage.setItem('tfa_dashboard_data', JSON.stringify(data));
@@ -172,10 +198,15 @@ const App: React.FC = () => {
     }
   }, [data]);
 
-  // Calculate stats
   const stats = useMemo(() => {
-    const passed = data.filter(d => d.status === 'pass').length;
-    const failed = data.filter(d => d.status === 'error').length;
+    const analyzedData = data.map(item => ({
+      ...item,
+      manualStatus: manualAnalyses[item.name]
+    }));
+
+    const purePassed = analyzedData.filter(d => d.status === 'pass').length;
+    const verified = analyzedData.filter(d => d.manualStatus === 'verified').length;
+    const failed = analyzedData.filter(d => d.status === 'error' && d.manualStatus !== 'verified').length;
     const total = data.length;
     
     // Calculate total duration
@@ -189,8 +220,8 @@ const App: React.FC = () => {
     if (mins > 0 || hours > 0) timeStr += `${mins}m `;
     timeStr += `${secs}s`;
 
-    return { passed, failed, total, totalTime: timeStr };
-  }, [data]);
+    return { passed: purePassed + verified, purePassed, verified, failed, total, totalTime: timeStr };
+  }, [data, manualAnalyses]);
 
   const pieData = [
     { name: 'Passed', value: stats.passed, color: '#10b981' }, // Emerald 500
@@ -264,9 +295,20 @@ const App: React.FC = () => {
   };
 
   const filteredData = useMemo(() => {
-    if (filter === 'all') return data;
-    return data.filter(item => item.status === filter);
-  }, [data, filter]);
+    const analyzed = data.map(item => ({
+      ...item,
+      manualStatus: manualAnalyses[item.name]
+    }));
+
+    if (filter === 'all') return analyzed;
+    if (filter === 'pass') {
+      return analyzed.filter(item => item.status === 'pass');
+    }
+    if (filter === 'verified') {
+      return analyzed.filter(item => item.manualStatus === 'verified');
+    }
+    return analyzed.filter(item => item.status === 'error' && item.manualStatus !== 'verified');
+  }, [data, filter, manualAnalyses]);
 
   const changelogModal = showChangelog && (
     <div style={{
@@ -508,7 +550,13 @@ const App: React.FC = () => {
               className={`filter-btn ${filter === 'pass' ? 'active' : ''}`}
               onClick={() => setFilter('pass')}
             >
-              Sucesso ({stats.passed})
+              Sucesso ({stats.purePassed})
+            </button>
+            <button 
+              className={`filter-btn ${filter === 'verified' ? 'active' : ''}`}
+              onClick={() => setFilter('verified')}
+            >
+              Verificados ({stats.verified})
             </button>
             <button 
               className={`filter-btn ${filter === 'error' ? 'active' : ''}`}
@@ -559,9 +607,13 @@ const App: React.FC = () => {
                       <span className="status-badge pass">
                         <CheckCircle2 size={16} /> Passou
                       </span>
+                    ) : item.manualStatus === 'verified' ? (
+                      <span className="status-badge warning">
+                        <CheckCircle2 size={16} /> Verificado
+                      </span>
                     ) : (
                       <span className="status-badge error">
-                        <XCircle size={16} /> Erro
+                        <XCircle size={16} /> {item.manualStatus === 'bug' ? 'Falha Real' : 'Erro'}
                       </span>
                     )}
                   </td>
@@ -573,7 +625,26 @@ const App: React.FC = () => {
                     <td colSpan={3} style={{ padding: 0 }}>
                       <div className="log-container">
                         <div className="log-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>Fluxo Completo de Execução</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <span>Fluxo Completo de Execução</span>
+                            {item.status === 'error' && (
+                              <div className="analysis-container" onClick={(e) => e.stopPropagation()}>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Triagem Manual:</span>
+                                <button 
+                                  className={`analysis-btn bug ${item.manualStatus === 'bug' ? 'active' : ''}`}
+                                  onClick={() => setManualAnalyses(prev => ({...prev, [item.name]: prev[item.name] === 'bug' ? undefined : 'bug'} as any))}
+                                >
+                                  <XCircle size={14} /> Falha Real
+                                </button>
+                                <button 
+                                  className={`analysis-btn verify ${item.manualStatus === 'verified' ? 'active' : ''}`}
+                                  onClick={() => setManualAnalyses(prev => ({...prev, [item.name]: prev[item.name] === 'verified' ? undefined : 'verified'} as any))}
+                                >
+                                  <CheckCircle2 size={14} /> Erro de Execução (Corrigido)
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <span>{item.logs.length} linhas analisadas</span>
                         </div>
                         <pre className="log-content">
