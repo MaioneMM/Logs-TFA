@@ -81,8 +81,18 @@ const parseLogFile = (text: string): TestResult[] => {
   return tests;
 };
 
-const APP_VERSION = "v1.1.2";
+const APP_VERSION = "v1.2.0";
 const CHANGELOG = [
+  {
+    version: 'v1.2.0',
+    date: '20/03/2026',
+    changes: [
+      'Adicionado suporte completo a Arraste e Solte (Drag and Drop) para arquivos de log em todo o dashboard',
+      'Adicionado botão "Sair do Log" para facilitar a limpeza de dados e troca de arquivos',
+      'Reorganização do cabeçalho para um layout mais limpo e responsivo',
+      'Feedback visual (glow e escala) ao arrastar arquivos sobre a área de upload'
+    ]
+  },
   {
     version: 'v1.1.2',
     date: '18/03/2026',
@@ -135,6 +145,7 @@ const App: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pass' | 'error'>('all');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll para o final do log quando expandir uma linha
@@ -204,10 +215,7 @@ const App: React.FC = () => {
     return null;
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const text = evt.target?.result as string;
@@ -222,7 +230,37 @@ const App: React.FC = () => {
       setExpandedRow(null);
     };
     reader.readAsText(file, 'utf-8');
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
     e.target.value = ''; // Reset input to allow re-uploading the same file
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
   };
 
   const filteredData = useMemo(() => {
@@ -291,8 +329,16 @@ const App: React.FC = () => {
   if (data.length === 0) {
     return (
       <div key="empty-state" className="dashboard-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <header className="header" style={{ marginBottom: '3rem', position: 'relative', width: '100%', maxWidth: '800px' }}>
-          <div style={{ position: 'absolute', top: '-40px', right: '0' }}>
+        <header className="header" style={{ 
+          marginBottom: '3rem', 
+          width: '100%', 
+          maxWidth: '800px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1rem'
+        }}>
+          <div style={{ alignSelf: 'flex-end', marginBottom: '-1rem' }}>
             <button 
               className="filter-btn" 
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--accent-purple)', color: 'var(--text-primary)' }}
@@ -301,14 +347,19 @@ const App: React.FC = () => {
               <Info size={16} color="var(--accent-purple)" /> Changelog ({APP_VERSION})
             </button>
           </div>
-          <h1>Dashboard de Testes TFA</h1>
-          <p>Faça o upload do seu arquivo de log para iniciar a análise.</p>
+          <div style={{ textAlign: 'center' }}>
+            <h1>Dashboard de Testes TFA</h1>
+            <p>Faça o upload do seu arquivo de log para iniciar a análise.</p>
+          </div>
         </header>
 
         <div 
-          className="glass-panel" 
+          className={`glass-panel ${isDragging ? 'dragging' : ''}`}
           style={{ width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4rem 2rem', borderStyle: 'dashed', borderWidth: '2px', cursor: 'pointer' }}
           onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
           <input 
             type="file" 
@@ -329,12 +380,37 @@ const App: React.FC = () => {
   }
 
   return (
-    <div key="dashboard-state" className="dashboard-container">
-      <header className="header" style={{ position: 'relative' }}>
-        <h1>Teste de Automação TFA</h1>
-        <p>Dashboard Analítico de Execução dos Testes</p>
+    <div 
+      key="dashboard-state" 
+      className="dashboard-container"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <header className="header" style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexWrap: 'wrap', 
+        gap: '1.5rem',
+        marginBottom: '2rem',
+        paddingBottom: '1.5rem',
+        borderBottom: '1px solid var(--border-color)',
+        textAlign: 'left'
+      }}>
+        <div>
+          <h1 style={{ fontSize: '2.2rem', margin: 0 }}>Teste de Automação TFA</h1>
+          <p style={{ margin: 0 }}>Dashboard Analítico de Execução dos Testes</p>
+        </div>
         
-        <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button 
+            className="filter-btn" 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--accent-blue)', color: 'white', border: 'none' }}
+            onClick={() => fileInputRef.current?.click()}
+          >
+             <Upload size={16} /> Novo Log
+          </button>
           <button 
             className="filter-btn" 
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--accent-purple)', color: 'var(--text-primary)' }}
@@ -344,10 +420,10 @@ const App: React.FC = () => {
           </button>
           <button 
             className="filter-btn" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--accent-blue)', color: 'white', border: 'none' }}
-            onClick={() => fileInputRef.current?.click()}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--error)', color: 'var(--text-primary)' }}
+            onClick={() => setData([])}
           >
-             <Upload size={16} /> Novo Log
+             <X size={16} color="var(--error)" /> Sair do Log
           </button>
         </div>
         <input 
